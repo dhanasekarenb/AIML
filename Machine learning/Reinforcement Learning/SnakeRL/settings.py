@@ -1,0 +1,18 @@
+# Window
+WIDTH = 600
+HEIGHT = 600
+
+# Grid
+CELL_SIZE = 20
+
+ROWS = HEIGHT // CELL_SIZE
+COLS = WIDTH // CELL_SIZE
+
+# FPS
+FPS = 10
+
+# Colors
+BLACK = (20, 20, 20)
+GREEN = (0, 255, 0)
+RED = (255, 50, 50)
+WHITE = (255, 255, 255)
