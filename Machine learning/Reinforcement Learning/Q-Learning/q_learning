@@ -1,0 +1,230 @@
+import numpy as np
+
+# parameter
+
+ROWS = 4
+COLS = 4
+
+START = (3, 0)
+GOAL  = (0, 3)
+TRAP  = (1, 2)
+
+# Actions
+ACTIONS = [0, 1, 2, 3]
+
+MOVES = {0: (-1, 0), 1 : (1, 0), 2: (0, -1), 3: (0, 1)}
+
+
+# Hyper parameters
+EPISODES = 3000 # Number of attempts
+MAX_STEPS = 100 # Maximum actions per attempt
+EPSILON = 1.0 # Initial exploration probability
+EPSILON_DECAY = 0.995 # Gradually reduce exploration
+MIN_EPSILON = 0.01 # Preserve some exploration
+
+total_reward = 0
+lr = 0.1
+discount_factor = 0.95
+
+"""
+explanation
+0 0 0 G
+0 0 T 0
+0 0 0 0
+S 0 0 0
+
+0  1  2  3  
+4  5  6  7  
+8  9  10 11
+12 13 14 15
+
+now the start is (3, 0) its index is 12
+"""
+def state_to_index(state:tuple) -> int:
+    
+    row, col = state
+
+    # COLS is the max size of the col defined here
+    return (row * COLS) + col
+
+
+"""
+inputs:
+state  -> what is the current position
+action -> where to move
+
+return:
+new state -> where it moved
+reward    -> positive or negative
+Done      -> False or True
+
+1. use action and make a move from current state
+2. if it goes out from matrix -1 reward and no movement same state
+3. if it makes random movement -1 reward and move to new state
+4. if it reach trap -100 reward and move to new state
+5. if it reach goal +100 reward and stop it.
+"""
+def step(state: tuple, action: int) -> tuple:
+
+    reward = -1
+    done = False
+
+    # error handling
+    if action not in ACTIONS:
+        print("invalid action")
+        raise ValueError
+
+    c_row, c_col = state
+    m_row, m_col = MOVES[action]
+    
+    new_state = (c_row + m_row, c_col + m_col)
+
+    if new_state == GOAL:
+        reward = 100
+        done = True
+
+    elif new_state == TRAP:
+        reward = -100
+        done = True
+
+    elif 0 <= new_state[0] < ROWS and 0 <= new_state[1] < COLS:
+        reward = -1
+        done = False
+
+    else:
+        new_state = state
+        reward = -1
+        done = False
+
+    return new_state, reward, done
+
+
+"""
+Q-Table
+
+NUM_STATES
+NUM_ACTIONS
+q_table
+"""
+
+NUM_STATES = ROWS * COLS
+NUM_ACTIONS = len(ACTIONS)
+
+q_table = np.zeros((NUM_STATES, NUM_ACTIONS))
+
+
+"""
+Epsilon Greedy action selection
+
+Two strategies
+1. Exploration  : choose randomly
+2. Exploitation : use q table highest value
+
+1. pos to integer using state_to_index()
+2. random num from 0 to 1
+3. if that number is less then epslion pick random numbers
+4. else use exploitation
+"""
+
+def choose_action(state:tuple, epsilon:float) -> int:
+    
+    cur_index = state_to_index(state = state)
+
+    r = np.random.random()
+
+    if r < epsilon:
+        action = np.random.choice(ACTIONS)
+
+    else:     
+        action = int(np.argmax(q_table[cur_index]))
+
+    return action
+
+"""
+Learning
+"""
+
+def update_q_values(state: tuple, action: int, reward: int, next_state: tuple, done: bool):
+
+    # state to index
+    cur_idx = state_to_index(state)
+
+    next_idx = state_to_index(next_state)
+
+    
+    # old q-value
+    old_value = q_table[cur_idx, action]
+
+    
+    # best future value
+    if done == True:
+        best_future_value = 0
+
+    else:
+        best_future_value = np.max(q_table[next_idx])
+
+
+    # New Q-value
+    target = reward + (discount_factor * best_future_value)
+
+    new_value = old_value + (lr * (target - old_value))
+
+    q_table[cur_idx][action] = new_value
+
+
+# loop
+
+r = []
+
+for i in range(EPISODES):
+
+    state = START
+    total_reward = 0
+
+    for j in range(MAX_STEPS):
+
+        action = choose_action(state, EPSILON)
+
+        new_state, reward, done = step(state, action)
+
+        total_reward += reward
+
+        update_q_values(state, action, reward, new_state, done)
+
+        if done:
+            break
+
+        state = new_state
+        
+    r.append(total_reward)
+    EPSILON = max(MIN_EPSILON, EPSILON * EPSILON_DECAY)
+
+print(q_table)
+
+
+# Testing
+def test_agent():
+    state = START
+    total_reward = 0
+
+    for _ in range(MAX_STEPS):
+
+        action = choose_action(state, 0.0)
+
+        new_state, reward, done = step(state, action)
+
+        total_reward += reward
+
+        print(state, "->", new_state)
+        print(reward)
+
+        state = new_state
+
+        if done:
+            break
+
+    print(total_reward)
+
+test_agent()
+
+print(sum(r[-100:])/len(r[-100:]))
